@@ -1,16 +1,3 @@
-#---------------------------------------------------------------------------------
-# 
-#  ECE 299 Lab #3 2026
-# 
-#  Pico RDA5807 FM radio module example code version 1.01
-# 
-#  copyright (C)2026 B. Sirna
-#     Dept. of Electrical and Computer Engineering
-#     University of Victoria
-# 
-#  Not for redistribution or artificial intelligence use
-# 
-#---------------------------------------------------------------------------------
 from machine import Pin, SPI # SPI is a class associated with the machine library. 
 
 
