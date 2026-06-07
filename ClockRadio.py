@@ -1,16 +1,3 @@
-#---------------------------------------------------------------------------------
-# 
-#  ECE 299 Lab #3 2026
-# 
-#  Pico RDA5807 FM radio module example code version 1.01
-# 
-#  copyright (C)2026 B. Sirna
-#     Dept. of Electrical and Computer Engineering
-#     University of Victoria
-# 
-#  Not for redistribution or artificial intelligence use
-# 
-#---------------------------------------------------------------------------------
 from machine import Pin, SPI # SPI is a class associated with the machine library. 
 
 
@@ -193,9 +180,6 @@ class Radio:
 #
 fm_radio = Radio( 101.9, 2, False ) # set the initialized frequency to the local radio station to 101.9
 
-button = machine.Pin(0,machine.Pin.IN,machine.Pin.PULL_UP)
-prev_btn_state = 1
-Volume = 0
 
 # Define columns and rows of the oled display. These numbers are the standard values. 
 SCREEN_WIDTH = 128 #number of columns
@@ -225,27 +209,28 @@ oled_spi = SPI( SPI_DEVICE, baudrate= 100000, sck= spi_sck, mosi= spi_sda )
 #
 oled = SSD1306_SPI( SCREEN_WIDTH, SCREEN_HEIGHT, oled_spi, spi_dc, spi_res, spi_cs, True )
 
+# Config the 3 buttons
+selectBtn = machine.Pin(0,machine.Pin.IN,machine.Pin.PULL_UP)
+upBtn = machine.Pin(1,machine.Pin.IN,machine.Pin.PULL_UP)
+downBtn = machine.Pin(2,machine.Pin.IN,machine.Pin.PULL_UP)
 
-
-# Assign a value to a variable
-Count = 3113
-
-
+prev_btn_state = 1
+Volume = 0
 
 while ( True ):
 
 #
 # display the menu
 #
-    """
-    print("")
-    print( "ECE 299 FM Radio Demo Menu V1.01" );
-    print("")
-    print( "1 - change radio frequency" )
-    print( "2 - change volume level" )
-    print( "3 - mute audio" )
-    print( "4 - read current settings" )
     
+    oled.text("")
+    oled.text( "ECE 299 FM Radio Demo Menu V1.01" );
+    oled.text("")
+    oled.text( "1 - change radio frequency" )
+    oled.text( "2 - change volume level" )
+    oled.text( "3 - mute audio" )
+    oled.text( "4 - read current settings" )
+    """
     select = input( "Enter menu number > " )
     """
 
