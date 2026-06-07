@@ -175,6 +175,20 @@ class Radio:
         
         return( MuteStatus, VolumeStatus, FrequencyStatus, StereoStatus )
 
+    def debounce(btn):
+        prev_btn_state = 1
+        cur_btn_state = btn.value()
+        if (cur_btn_state != prev_btn_state):
+            if( cur_btn_state == 0):
+                
+                print(f'the volume is {Volume}')
+            
+                fm_radio.SetVolume( Volume )
+                fm_radio.ProgramRadio()
+            
+                utime.sleep_ms(30)
+            prev_btn_state = cur_btn_state
+
 #
 # initialize the FM radio
 #
@@ -214,7 +228,6 @@ selectBtn = machine.Pin(0,machine.Pin.IN,machine.Pin.PULL_UP)
 upBtn = machine.Pin(1,machine.Pin.IN,machine.Pin.PULL_UP)
 downBtn = machine.Pin(2,machine.Pin.IN,machine.Pin.PULL_UP)
 
-prev_btn_state = 1
 Volume = 0
 
 while ( True ):
@@ -230,6 +243,12 @@ while ( True ):
     oled.text( "2 - change volume level" )
     oled.text( "3 - mute audio" )
     oled.text( "4 - read current settings" )
+
+    menuOptions = ["Freq", "Vol", "Mute", "readCur"]
+
+    selected = 0
+
+
     """
     select = input( "Enter menu number > " )
     """
@@ -273,17 +292,17 @@ while ( True ):
 #
 # Update the text on the screen
 #
-    oled.text("Volume is: %4d" %Volume , 0, 30 ) # Print the value stored in the variable Count. 
         
 #
 # Draw box below the text
-#
+#   
+    """
     oled.rect( 0, 50, 128, 5, 1  )        
+    """
 
 #
 # Transfer the buffer to the screen
 #
-    oled.show()
     #elif ( select == "2" ):
      #   Volume = input( "Enter volume level ( 0 to 15, 15 is loud ) > " )
       #  
@@ -337,5 +356,6 @@ while ( True ):
     else:
         print( "Invalid menu option" )
     """
+    oled.show()
 
 
