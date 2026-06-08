@@ -242,7 +242,7 @@ freqMenu = 2
 volMenu = 3
 readMenu = 4
 goBack = 5
-changingFreq = 6
+
 
 count = 0
 #Configure Display for radio settings
@@ -295,15 +295,11 @@ def displayClock():
     oled.text("%02d/%02d/%02d"%(DOM,month,year),25,30)
     oled.fill_rect(8,43,120,10,1) # (start coordinate x, y, width, height, B/W)
     oled.text("Radio Settings",10,45,0)
-    
+"""   
 def displayFreqSettings():
     global selectedMenu
     oled.text("Change Frequency",0, 0)
-    if selectedMenu < 0:
-        selectedMenu = 1
-    elif selectedMenu > 1:
-        selectedMenu = 0
-    
+ 
     if selectedMenu == 0:
         oled.fill_rect(19,24,80,10,1)
         oled.text("%.1f MHz"%fm_radio.Frequency,20,25,0)
@@ -315,6 +311,31 @@ def displayFreqSettings():
         oled.text("Go Back", 30,55,0)
     else:
         oled.text("Go Back", 30,55)
+"""      
+def displayFreqSettings():
+    oled.text("Up/Down to", 0,0)
+    oled.text("change frequency",0,10)
+    oled.fill_rect(19,29,80,10,1)
+    oled.text("%.1f MHz"%fm_radio.Frequency,20,30,0)
+    
+    oled.text("Press select",0,45)
+    oled.text("to save",0,55)
+
+def displayVolSettings():
+    oled.text("Up/Down to", 0,0)
+    oled.text("change volume", 0,10)
+    oled.fill_rect(48,29,30,10,1)
+    oled.text("%2d"%fm_radio.Volume,50,30,0)
+    
+    oled.text("Press select",0,45)
+    oled.text("to save",0,55)
+    
+def displayAllSettings():
+    oled.text("Volume: %2d"%fm_radio.Volume,0,0)
+    oled.text("Frequency:%.1f"%fm_radio.Frequency,0,10)
+    
+    oled.fill_rect(29,49,60,10,1)
+    oled.text("Go back", 30, 50, 0)
 
 while ( True ):
     oled.fill(0)
@@ -340,28 +361,51 @@ while ( True ):
             selectedMenu = 0
     
     # Control Frequency Menu
+    # To do: make it scan up/down to next station
     if currentMenu == freqMenu:
         displayFreqSettings()
-        print(selectedMenu)
+        
         if debounce(btnUp) == 0:
-            selectedMenu = selectedMenu-1
+            if fm_radio.Frequency < 108.0:
+                fm_radio.SetFrequency(fm_radio.Frequency+0.1)
+                fm_radio.ProgramRadio()
         
         if debounce(btnDown) == 0:
-            selectedMenu = selectedMenu + 1
+            if fm_radio.Frequency > 88.0:
+                fm_radio.SetFrequency(fm_radio.Frequency-0.1)
+                fm_radio.ProgramRadio()
         
-        if debounce(btnSelect) == 0 and selectedMenu == goBack:
-            currentMenu = goBack
-            selectedMenu = 0
-        
-        if debounce(btnSelectt) == 0 annd selectedMenu === frequency:
-            currentMenu = changingFreq
+        if debounce(btnSelect) == 0:
+            currentMenu = radioMenu
             selectedMenu = 0
     
-    if currentMenu ==changingFreq:
-        if debounce(btnUp) ==0:
+    # Control Volume Menu
+    # To do: implement the mute function when volume reaches 0
+    if currentMenu == volMenu:
+        displayVolSettings()
             
-            
+        if debounce(btnUp) == 0:
+            if fm_radio.Volume < 15:
+                fm_radio.SetVolume(fm_radio.Volume + 1)
+                fm_radio.ProgramRadio()
+        
+        if debounce(btnDown) ==0:
+            if fm_radio.Volume >0:
+                fm_radio.SetVolume(fm_radio.Volume - 1)
+                fm_radio.ProgramRadio()
+                
+        if debounce(btnSelect) == 0:
+            currentMenu = radioMenu
+            selectedMenu = 0
     
+    # Display all settings and give option to "go back" 
+    if currentMenu == readMenu:
+        displayAllSettings()
+        
+        if debounce(btnSelect) == 0:
+            currentMenu = radioMenu
+            selectedMenu = 0
+          
     oled.show()
 
 
