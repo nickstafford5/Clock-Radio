@@ -1,12 +1,11 @@
 from machine import Pin, SPI # SPI is a class associated with the machine library. 
-
-
 # The below specified libraries have to be included. Also, ssd1306.py must be saved on the Pico. 
 from ssd1306 import SSD1306_SPI # this is the driver library and the corresponding class
 import framebuf # this is another library for the display. 
 from machine import Pin, I2C
 import time
 import utime
+
 class Radio:
     
     def __init__( self, NewFrequency, NewVolume, NewMute ):
@@ -175,20 +174,6 @@ class Radio:
         
         return( MuteStatus, VolumeStatus, FrequencyStatus, StereoStatus )
 
-    def debounce(btn):
-        prev_btn_state = 1
-        cur_btn_state = btn.value()
-        if (cur_btn_state != prev_btn_state):
-            if( cur_btn_state == 0):
-                
-                print(f'the volume is {Volume}')
-            
-                fm_radio.SetVolume( Volume )
-                fm_radio.ProgramRadio()
-            
-                utime.sleep_ms(30)
-            prev_btn_state = cur_btn_state
-
 #
 # initialize the FM radio
 #
@@ -223,139 +208,160 @@ oled_spi = SPI( SPI_DEVICE, baudrate= 100000, sck= spi_sck, mosi= spi_sda )
 #
 oled = SSD1306_SPI( SCREEN_WIDTH, SCREEN_HEIGHT, oled_spi, spi_dc, spi_res, spi_cs, True )
 
-# Config the 3 buttons
-selectBtn = machine.Pin(0,machine.Pin.IN,machine.Pin.PULL_UP)
-upBtn = machine.Pin(1,machine.Pin.IN,machine.Pin.PULL_UP)
-downBtn = machine.Pin(2,machine.Pin.IN,machine.Pin.PULL_UP)
 
-Volume = 0
+# Config the 3 buttons
+btnSelect = machine.Pin(0,machine.Pin.IN,machine.Pin.PULL_UP)
+btnDown = machine.Pin(1,machine.Pin.IN,machine.Pin.PULL_UP)
+btnUp = machine.Pin(2,machine.Pin.IN,machine.Pin.PULL_UP)
+
+# software debounce for buttons
+prev_states = {}
+def debounce(btn):
+    cur = btn.value()
+
+    if btn not in prev_states:
+        prev_states[btn] = cur
+
+    if cur != prev_states[btn]:
+        prev_states[btn] = cur
+
+        if cur == 0:
+            utime.sleep_ms(30)
+
+            if btn.value() == 0: 
+                return 0
+
+    return 1
+
+selectedMenu = 0
+currentMenu = 0
+
+clockMenu = 0
+radioMenu = 1
+freqMenu = 2
+volMenu = 3
+readMenu = 4
+goBack = 5
+changingFreq = 6
+
+count = 0
+#Configure Display for radio settings
+def displayRadioSettings():
+    global selectedMenu
+    
+    oled.text("Radio Settings",10,0)
+    
+    # Make the cursor loop around list
+    if selectedMenu < 0:
+        selectedMenu = 3
+    elif selectedMenu > 3:
+        selectedMenu = 0
+    
+    if selectedMenu == 0:
+        oled.fill_rect(0,18,128,11,1)
+        oled.text("Change Frequency", 0,20,0)
+    else:
+        oled.text("Change Frequency",0,20)
+    
+    if selectedMenu == 1:
+        oled.fill_rect(0,28,128,11,1)
+        oled.text("Change Volume",0,30,0)
+    else:
+        oled.text("Change Volume",0,30)
+    
+    if selectedMenu == 2:
+        oled.fill_rect(0,38,128,11,1)
+        oled.text("Read Settings", 0,40,0)
+    else:
+        oled.text("Read Settings",0,40)
+        
+    if selectedMenu ==3:
+        oled.fill_rect(0,48,128,11,1)
+        oled.text("Go Back", 0,50,0)
+    else:
+        oled.text("Go Back",0,50)
+
+def displayClock():
+    localTime = utime.localtime()
+    year = localTime[0]
+    month = localTime[1]
+    DOM = localTime[2]
+    hour = localTime[3]
+    minute = localTime[4]
+    second = localTime[5]
+    weekday = localTime[6]
+
+    oled.text("%02d:%02d:%02d"%(hour, minute, second), 35, 20)
+    oled.text("%02d/%02d/%02d"%(DOM,month,year),25,30)
+    oled.fill_rect(8,43,120,10,1) # (start coordinate x, y, width, height, B/W)
+    oled.text("Radio Settings",10,45,0)
+    
+def displayFreqSettings():
+    global selectedMenu
+    oled.text("Change Frequency",0, 0)
+    if selectedMenu < 0:
+        selectedMenu = 1
+    elif selectedMenu > 1:
+        selectedMenu = 0
+    
+    if selectedMenu == 0:
+        oled.fill_rect(19,24,80,10,1)
+        oled.text("%.1f MHz"%fm_radio.Frequency,20,25,0)
+    else:
+        oled.text("%.1f MHz"%fm_radio.Frequency,20,25)
+
+    if selectedMenu == 1:
+        oled.fill_rect(29,54,60,10,1)
+        oled.text("Go Back", 30,55,0)
+    else:
+        oled.text("Go Back", 30,55)
 
 while ( True ):
-
-#
-# display the menu
-#
-    
-    oled.text("")
-    oled.text( "ECE 299 FM Radio Demo Menu V1.01" );
-    oled.text("")
-    oled.text( "1 - change radio frequency" )
-    oled.text( "2 - change volume level" )
-    oled.text( "3 - mute audio" )
-    oled.text( "4 - read current settings" )
-
-    menuOptions = ["Freq", "Vol", "Mute", "readCur"]
-
-    selected = 0
-
-
-    """
-    select = input( "Enter menu number > " )
-    """
-
-#
-# Set radio frequency
-#
-    """
-    if ( select == "1" ):
-        Frequency = input( "Enter frequncy in Mhz ( IE 100.3 ) > " )
-
-        if ( fm_radio.SetFrequency( Frequency ) == True ):
-            fm_radio.ProgramRadio()
-        else:
-            print( "Invalid frequency( Range is 88.0 to 108.0 )" )
-    """
-#
-# Set volume level of radio
-#
-    cur_btn_state = button.value()
-    if (cur_btn_state != prev_btn_state):
-        if( cur_btn_state == 0):
-            Volume += 1
-            print(f'the volume is {Volume}')
-            
-            fm_radio.SetVolume( Volume )
-            fm_radio.ProgramRadio()
-            
-            utime.sleep_ms(30)
-        prev_btn_state = cur_btn_state
-    
-    """
-    if ( fm_radio.SetVolume( Volume ) == True ):
-            fm_radio.ProgramRadio()
-       """     
-            
-    if (Volume >= 15):
-        Volume=0
     oled.fill(0)
+    
+    # Control Clock Menu
+    if currentMenu == clockMenu or currentMenu == goBack:
+        displayClock()
+        if debounce(btnSelect) == 0:
+            selectedMenu = 0
+            currentMenu = radioMenu
+
+    # Control Radio Menu
+    if currentMenu == radioMenu:
+        displayRadioSettings()
         
-#
-# Update the text on the screen
-#
+        if debounce(btnUp) == 0:
+            selectedMenu = selectedMenu - 1
+        if debounce(btnDown) ==0:
+            selectedMenu = selectedMenu + 1
         
-#
-# Draw box below the text
-#   
-    """
-    oled.rect( 0, 50, 128, 5, 1  )        
-    """
-
-#
-# Transfer the buffer to the screen
-#
-    #elif ( select == "2" ):
-     #   Volume = input( "Enter volume level ( 0 to 15, 15 is loud ) > " )
-      #  
-       # if ( fm_radio.SetVolume( Volume ) == True ):
-        #    fm_radio.ProgramRadio()
-        #else:
-         #   print( "Invalid volume level( Range is 0 to 15 )" )
+        if debounce(btnSelect) == 0:
+            currentMenu = selectedMenu + 2
+            selectedMenu = 0
+    
+    # Control Frequency Menu
+    if currentMenu == freqMenu:
+        displayFreqSettings()
+        print(selectedMenu)
+        if debounce(btnUp) == 0:
+            selectedMenu = selectedMenu-1
         
-#        
-# Enable mute of radio       
-#
-    """
-    elif( select == "3" ):
-        Mute = input( "Enter mute ( 1 for Mute, 0 for audio ) > " )
+        if debounce(btnDown) == 0:
+            selectedMenu = selectedMenu + 1
         
-        if ( fm_radio.SetMute( Mute ) == True ):
-            fm_radio.ProgramRadio()
-        else:
-            print( "Invalid mute setting" )
-    """
-
-#
-# Display radio current settings
-#
-    """
-    elif( select == "4" ):
-        Settings = fm_radio.GetSettings()
-
-        print( Settings )
-        print("")
-        print("Radio Status")
-        print("")
-
-        print( "Mute: ", end="" )
-        if ( Settings[0] == True ):
-            print( "enabled" )
-        else:
-            print( "disabled" )
-
-        print( "Volume: %d" % Settings[1] )
-
-        print( "Frequency: %5.1f" % Settings[2] )
-
-        print( "Mode: ", end="" )
-        if ( Settings[3] == True ):
-            print( "stereo" )
-        else:
-            print( "mono" )
-
-
-    else:
-        print( "Invalid menu option" )
-    """
+        if debounce(btnSelect) == 0 and selectedMenu == goBack:
+            currentMenu = goBack
+            selectedMenu = 0
+        
+        if debounce(btnSelectt) == 0 annd selectedMenu === frequency:
+            currentMenu = changingFreq
+            selectedMenu = 0
+    
+    if currentMenu ==changingFreq:
+        if debounce(btnUp) ==0:
+            
+            
+    
     oled.show()
 
 
