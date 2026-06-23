@@ -45,6 +45,56 @@ class Radio:
 
         self.radio_i2c = I2C( self.i2c_device, scl=self.i2c_scl, sda=self.i2c_sda, freq=200000)
         self.ProgramRadio()
+    
+    """
+    To develop the Scan function for the radio, we gave Claude the following prompt:
+    <Task> Make the radio module (RDA5807m) 'scan' to the next valid frequency. Currently In
+    our function the radio module frequency goes up by one. ONLY ADD COMMENTS TO WHERE YOU CHANGED STUFF.
+    DO NOT CHANGE THE STRUCTURE OF THE CODE. If you provide a function then only provide that function and if
+    you have to modify some part of the code provide the lines and comment where you added/changed code.
+    <code> (we copy/pasted our code for claude to reference)
+    """
+    def Scan(self, ScanUp=True):
+    # Build seek settings mirroring UpdateSettings structure
+        ScanSettings = bytearray(8)
+
+        if self.Mute:
+            ScanSettings[0] = 0x80
+        else:
+            ScanSettings[0] = 0xC0
+
+        # Set SEEK bit (0x01); SEEKUP bit (0x02) controls scan direction
+        if ScanUp:
+            ScanSettings[0] |= 0x03  # SEEK + SEEKUP: scan toward higher frequencies
+        else:
+            ScanSettings[0] |= 0x01  # SEEK only: scan toward lower frequencies
+
+        ScanSettings[1] = 0x09 | 0x04
+        ScanSettings[2:4] = self.ComputeChannelSetting(self.Frequency)
+        #ScanSettings[3] = ScanSettings[3] | 0x10
+        ScanSettings[4] = 0x04
+        ScanSettings[5] = 0x00
+        ScanSettings[6] = 0x84
+        ScanSettings[7] = 0x80 + self.Volume
+        ScanSettings = ScanSettings[:8]
+
+        # Transmit the seek command to the chip
+        self.radio_i2c.writeto(self.i2c_device_address, ScanSettings)
+
+        # Poll STC bit (bit 6 of reg 0x0A high byte) until seek finishes
+        while True:
+            status = self.radio_i2c.readfrom(self.i2c_device_address, 2)
+            if status[0] & 0x40:  # STC (Seek/Tune Complete) flag
+                break
+            utime.sleep_ms(50)
+
+        # Only update frequency if seek succeeded; SF bit (bit 5) signals failure
+        if not (status[0] & 0x20):
+            new_chan = ((status[0] & 0x03) << 8) | (status[1] & 0xFF)
+            self.Frequency = round(new_chan * 0.1 + 87.0, 1)
+
+        # Reprogram radio normally to clear the SEEK bit
+        self.ProgramRadio()
 
     def SetVolume( self, NewVolume ):
 #
@@ -366,14 +416,10 @@ while ( True ):
         displayFreqSettings()
         
         if debounce(btnUp) == 0:
-            if fm_radio.Frequency < 108.0:
-                fm_radio.SetFrequency(fm_radio.Frequency+0.1)
-                fm_radio.ProgramRadio()
+            fm_radio.Scan(ScanUp=True)
         
         if debounce(btnDown) == 0:
-            if fm_radio.Frequency > 88.0:
-                fm_radio.SetFrequency(fm_radio.Frequency-0.1)
-                fm_radio.ProgramRadio()
+            fm_radio.Scan(ScanUp=False)
         
         if debounce(btnSelect) == 0:
             currentMenu = radioMenu
@@ -386,18 +432,24 @@ while ( True ):
             
         if debounce(btnUp) == 0:
             if fm_radio.Volume < 15:
+                fm_radio.SetMute(False)
+                fm_radio.ProgramRadio()
                 fm_radio.SetVolume(fm_radio.Volume + 1)
                 fm_radio.ProgramRadio()
         
         if debounce(btnDown) ==0:
             if fm_radio.Volume >0:
+                fm_radio.SetMute(False)
+                fm_radio.ProgramRadio()
                 fm_radio.SetVolume(fm_radio.Volume - 1)
                 fm_radio.ProgramRadio()
                 
         if debounce(btnSelect) == 0:
             currentMenu = radioMenu
             selectedMenu = 0
-    
+        elif fm_radio.Volume == 0:
+            fm_radio.SetMute(True)
+            fm_radio.ProgramRadio()
     # Display all settings and give option to "go back" 
     if currentMenu == readMenu:
         displayAllSettings()
